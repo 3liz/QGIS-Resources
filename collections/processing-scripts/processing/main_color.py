@@ -153,7 +153,7 @@ class SetFeatureMainColor(QgsProcessingAlgorithm):
             self.INPUT_LAYER,
             context
         )
-        self.layer = vlayer
+        self.layer = vlaye
         symbol_level = parameters[self.SYMBOL_LEVEL]
         self.symbol_level = symbol_level
         self.feedback = feedback
