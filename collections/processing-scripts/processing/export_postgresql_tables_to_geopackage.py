@@ -4,12 +4,11 @@ from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingException,
     QgsProcessingParameterString,
-    QgsProcessingParameterCrs,
-    QgsDataSourceUri,
     QgsProcessingParameterFileDestination,
 )
 from processing.algs.gdal.GdalUtils import GdalUtils
 from processing.tools.postgis import uri_from_name
+
 
 class ExportPostgresqlTablesToGeopackage(QgsProcessingAlgorithm):
     """
@@ -66,7 +65,7 @@ class ExportPostgresqlTablesToGeopackage(QgsProcessingAlgorithm):
             self.tr('List of schemas, separated by commas'),
             optional=False
         )
-        self.addParameter(schemas_param )
+        self.addParameter(schemas_param)
 
         self.addParameter(
             QgsProcessingParameterString(
@@ -107,7 +106,7 @@ class ExportPostgresqlTablesToGeopackage(QgsProcessingAlgorithm):
         """
         connection_name = parameters[self.CONNECTION_NAME]
         schemas = self.parameterAsString(parameters, self.SCHEMAS, context)
-        schemas = ','.join([s.strip() for s in schemas.split(',') ])
+        schemas = ','.join([s.strip() for s in schemas.split(',')])
         output_path = self.parameterAsString(parameters, self.DESTINATION, context)
         if not output_path.lower().endswith('.gpkg'):
             output_path += '.gpkg'
@@ -117,10 +116,9 @@ class ExportPostgresqlTablesToGeopackage(QgsProcessingAlgorithm):
             feedback.pushDebugInfo(self.tr('Previous Geopackage has been deleted !'))
 
         uri = self.getPostgisConnectionUriFromName(connection_name)
-        p = context.project()
         if uri.service():
             ogr_source = 'PG:service=%s schemas=%s ' % (
-                pg_service,
+                uri.service(),
                 schemas
             )
         else:
@@ -148,7 +146,6 @@ class ExportPostgresqlTablesToGeopackage(QgsProcessingAlgorithm):
             '--config', 'OGR_SQLITE_SYNCHRONOUS', 'OFF',
             '--config', 'OGR_SQLITE_CACHE', '1024'
         ]
-
 
         feedback.pushInfo('OGR command = ogr2ogr {}'.format(' '.join(ogr_arguments)))
         GdalUtils.runGdal(['ogr2ogr', GdalUtils.escapeAndJoin(ogr_arguments)], feedback)
