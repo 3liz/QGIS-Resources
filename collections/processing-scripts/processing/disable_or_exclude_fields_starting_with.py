@@ -15,6 +15,7 @@ class DisableOrExcludeFieldsStartWithAlgorithm(QgsProcessingAlgorithm):
     READ_ONLY_FIELDS = 'READ_ONLY_FIELDS'
     EXCLUDED_FIELDS = 'EXCLUDED_FIELDS'
     EXCLUDE_PRIMARY_KEY = 'EXCLUDE_PRIMARY_KEY'
+    SET_PRIMARY_KEY_READ_ONLY = 'SET_PRIMARY_KEY_READ_ONLY'
 
     @staticmethod
     def tr(string):
@@ -50,21 +51,29 @@ class DisableOrExcludeFieldsStartWithAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterString(
                 self.READ_ONLY_FIELDS,
-                self.tr('Set field read-only when starting with'),
+                self.tr('Set field read-only when starting with (uncheck "editable")'),
                 optional=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterString(
                 self.EXCLUDED_FIELDS,
-                self.tr('Exclude field from QGIS Server when starting with'),
+                self.tr('Exclude field from QGIS Server when starting with (uncheck "WMS" and "WFS")'),
                 optional=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.EXCLUDE_PRIMARY_KEY,
-                self.tr('Exclude primary key'),
+                self.tr('Exclude primary key(s) from QGIS Server (uncheck only "WMS")'),
+                defaultValue=True
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.SET_PRIMARY_KEY_READ_ONLY,
+                self.tr('Set primary key(s) read only'),
+                defaultValue=True
             )
         )
 
@@ -79,7 +88,8 @@ class DisableOrExcludeFieldsStartWithAlgorithm(QgsProcessingAlgorithm):
         layers = self.parameterAsLayerList(parameters, self.INPUTS, context)
         read_only_pattern = self.parameterAsString(parameters, self.READ_ONLY_FIELDS, context)
         excluded_pattern = self.parameterAsString(parameters, self.EXCLUDED_FIELDS, context)
-        primary_key = self.parameterAsBool(parameters, self.EXCLUDE_PRIMARY_KEY, context)
+        exclude_primary_key = self.parameterAsBool(parameters, self.EXCLUDE_PRIMARY_KEY, context)
+        set_pk_read_only = self.parameterAsBool(parameters, self.SET_PRIMARY_KEY_READ_ONLY, context)
 
         layers = [layer for layer in layers if layer.providerType() == 'postgres']
         if not layers:
@@ -99,22 +109,30 @@ class DisableOrExcludeFieldsStartWithAlgorithm(QgsProcessingAlgorithm):
                 index = layer.fields().indexFromName(name)
                 if read_only_pattern and name.startswith(read_only_pattern):
                     # Set readonly
-                    feedback.pushInfo('Set readonly \'{}\''.format(name))
+                    feedback.pushInfo('{} - Set readonly'.format(name.upper()))
                     config = layer.editFormConfig()
                     config.setReadOnly(index, True)
                     layer.setEditFormConfig(config)
                 if excluded_pattern and name.startswith(excluded_pattern):
-                    # Disable on WFS and WMS
-                    feedback.pushInfo('Set disabled \'{}\''.format(name))
+                    # Add to the excluded fields list to disable it later for WFS and WMS
+                    feedback.pushInfo('{} - Set disabled'.format(name.upper()))
                     excluded_fields.append(name)
-                if primary_key and index in pks:
-                    # Disable on WMS
-                    feedback.pushInfo('Set disabled PK \'{}\''.format(name))
-                    pk_fields.append(index)
+                if exclude_primary_key and index in pks:
+                    # Add to the pk list to disable it on WMS later
+                    feedback.pushInfo('{} -  PK: Set disabled'.format(name.upper()))
+                    pk_fields.append(name)
+                # Set pk readonly
+                if set_pk_read_only and index in pks:
+                    feedback.pushInfo('{} -  PK: Set read only'.format(name.upper()))
+                    config = layer.editFormConfig()
+                    config.setReadOnly(index, True)
+                    layer.setEditFormConfig(config)
 
+            # Exclude fields : WMS and WFS
             if excluded_fields:
                 layer.setExcludeAttributesWms(list(layer.excludeAttributesWms()) + excluded_fields)
                 layer.setExcludeAttributesWfs(list(layer.excludeAttributesWfs()) + excluded_fields)
+            # Exclude PK from WMS (to hide it), but keep for WFS as required by many tools
             if pk_fields:
                 layer.setExcludeAttributesWms(list(layer.excludeAttributesWms()) + pk_fields)
 
