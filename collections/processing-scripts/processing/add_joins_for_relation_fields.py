@@ -60,6 +60,8 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
         if not layers:
             return False, 'At least one layer is required'
 
+        return super().checkParameterValues(parameters, context)
+
     def processAlgorithm(self, parameters, context, feedback):
         layers = self.parameterAsLayerList(parameters, self.INPUTS, context)
         drop = self.parameterAsBool(parameters, self.DROP_EXISTING_JOINS, context)
