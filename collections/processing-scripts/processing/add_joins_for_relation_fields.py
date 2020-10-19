@@ -22,6 +22,11 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
     DROP_EXISTING_JOINS = 'DROP_EXISTING_JOINS'
     OUTPUT = 'OUTPUT'
 
+    def __init__(self):
+        self.layers = None
+        self.drop = None
+        super().__init__()
+
     @staticmethod
     def tr(string):
         return QCoreApplication.translate('Processing', string)
@@ -69,11 +74,14 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
 
         return super().checkParameterValues(parameters, context)
 
-    def prepareAlgorithm(self, parameters, context, feedback):
-        # The algorithms take place in the main thread, to try to make vector join working without closing the
-        # project, but it still not enough.
-        layers = self.parameterAsLayerList(parameters, self.INPUTS, context)
-        drop = self.parameterAsBool(parameters, self.DROP_EXISTING_JOINS, context)
+    def processAlgorithm(self, parameters, context, feedback):
+        self.layers = self.parameterAsLayerList(parameters, self.INPUTS, context)
+        self.drop = self.parameterAsBool(parameters, self.DROP_EXISTING_JOINS, context)
+        return {}
+
+    def postProcess(self, context, feedback):
+        layers = self.layers
+        drop = self.drop
 
         total = len(layers)
         failed = []
@@ -146,8 +154,4 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
                 'Everything went fine, BUT you must save your project and reopen it. Joins, WMS and WFS are '
                 'not appearing otherwise.')
 
-        return True
-
-    def processAlgorithm(self, parameters, context, feedback):
-        """ See prepareAlgorithm(). """
         return {}
