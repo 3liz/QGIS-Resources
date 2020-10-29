@@ -7,16 +7,12 @@ import shutil
 import traceback
 import zipfile
 
-from pathlib import Path
-from itertools import chain
 from datetime import datetime
+from itertools import chain
+from pathlib import Path
 
+from qgis.core import QgsProcessingException, QgsProcessingParameterFile
 from qgis.processing import alg
-from qgis.core import (
-    QgsProcessingException,
-    QgsProcessingParameterFile,
-)
-
 from qgis.PyQt.QtXml import QDomDocument
 
 

@@ -1,12 +1,12 @@
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingException,
-    QgsProcessingParameterMultipleLayers,
     QgsProcessingParameterBoolean,
+    QgsProcessingParameterMultipleLayers,
     QgsProcessingParameterString,
 )
+from qgis.PyQt.QtCore import QCoreApplication
 
 
 class DisableOrExcludeFieldsStartWithAlgorithm(QgsProcessingAlgorithm):

@@ -5,10 +5,10 @@ __revision__ = "$Format:%H$"
 
 from qgis.core import (
     QgsProcessing,
-    QgsProcessingException,
     QgsProcessingAlgorithm,
-    QgsProcessingParameterMultipleLayers,
+    QgsProcessingException,
     QgsProcessingParameterBoolean,
+    QgsProcessingParameterMultipleLayers,
     QgsVectorLayerJoinInfo,
 )
 

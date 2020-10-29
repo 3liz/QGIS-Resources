@@ -3,24 +3,21 @@ __license__ = "GPL version 3"
 __email__ = "info@3liz.org"
 __revision__ = "$Format:%H$"
 
-from qgis.PyQt.QtCore import (
-    QCoreApplication,
-    QVariant
-)
 from qgis.core import (
-    QgsProcessing,
-    QgsProcessingException,
-    QgsProcessingAlgorithm,
-    QgsProcessingParameterNumber,
-    QgsProcessingParameterString,
-    QgsProcessingParameterVectorLayer,
-    QgsProcessingParameterField,
-    QgsField,
-    QgsFeatureRequest,
     QgsExpression,
     QgsExpressionContext,
     QgsExpressionContextUtils,
+    QgsFeatureRequest,
+    QgsField,
+    QgsProcessing,
+    QgsProcessingAlgorithm,
+    QgsProcessingException,
+    QgsProcessingParameterField,
+    QgsProcessingParameterNumber,
+    QgsProcessingParameterString,
+    QgsProcessingParameterVectorLayer,
 )
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 
 class SetFeatureMainColor(QgsProcessingAlgorithm):

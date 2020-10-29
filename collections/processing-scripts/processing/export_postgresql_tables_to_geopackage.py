@@ -1,13 +1,14 @@
 import os
-from qgis.PyQt.QtCore import QCoreApplication
+
+from processing.algs.gdal.GdalUtils import GdalUtils
+from processing.tools.postgis import uri_from_name
 from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingException,
-    QgsProcessingParameterString,
     QgsProcessingParameterFileDestination,
+    QgsProcessingParameterString,
 )
-from processing.algs.gdal.GdalUtils import GdalUtils
-from processing.tools.postgis import uri_from_name
+from qgis.PyQt.QtCore import QCoreApplication
 
 
 class ExportPostgresqlTablesToGeopackage(QgsProcessingAlgorithm):

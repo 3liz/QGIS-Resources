@@ -1,13 +1,13 @@
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
+    QgsFeatureRequest,
     QgsProcessing,
     QgsProcessingAlgorithm,
-    QgsProcessingParameterMultipleLayers,
     QgsProcessingParameterBoolean,
-    QgsProcessingParameterField,
     QgsProcessingParameterFeatureSource,
-    QgsFeatureRequest,
+    QgsProcessingParameterField,
+    QgsProcessingParameterMultipleLayers,
 )
+from qgis.PyQt.QtCore import QCoreApplication
 
 
 class ApplyAliasesFromCsvAlgorithm(QgsProcessingAlgorithm):
