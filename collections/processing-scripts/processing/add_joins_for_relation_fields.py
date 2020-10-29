@@ -3,10 +3,7 @@ __license__ = "GPL version 3"
 __email__ = "info@3liz.org"
 __revision__ = "$Format:%H$"
 
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
-    Qgis,
-    QgsField,
     QgsProcessing,
     QgsProcessingException,
     QgsProcessingAlgorithm,
@@ -15,6 +12,8 @@ from qgis.core import (
     QgsVectorLayerJoinInfo,
 )
 
+# It seems the script is not working for QGIS >= 3.16
+
 
 class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
 
@@ -22,9 +21,11 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
     DROP_EXISTING_JOINS = 'DROP_EXISTING_JOINS'
     OUTPUT = 'OUTPUT'
 
-    @staticmethod
-    def tr(string):
-        return QCoreApplication.translate('Processing', string)
+    def __init__(self):
+        self.layers = None
+        self.drop = None
+        self.prefix = '{}_'
+        super().__init__()
 
     def createInstance(self):
         return AddJoinsForRelationFieldsAlgorithm()
@@ -33,16 +34,16 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
         return 'add_joins_for_value_relation_fields'
 
     def displayName(self):
-        return self.tr('Add joins for value relation fields')
+        return 'Add joins for value relation fields'
 
     def group(self):
-        return self.tr('Vector')
+        return 'Vector'
 
     def groupId(self):
         return 'vector'
 
     def shortHelpString(self):
-        return self.tr(
+        return (
             "Add a vector join if one field is a value relation. All these joins will not be "
             "published as WMS and WFS.")
 
@@ -50,14 +51,14 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterMultipleLayers(
                 self.INPUTS,
-                self.tr('Vector layers'),
+                'Vector layers',
                 QgsProcessing.TypeVector,
             )
         )
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.DROP_EXISTING_JOINS,
-                self.tr('Drop existing joins before hand'),
+                'Drop existing joins before hand',
                 defaultValue=True,
             )
         )
@@ -69,22 +70,33 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
 
         return super().checkParameterValues(parameters, context)
 
-    def prepareAlgorithm(self, parameters, context, feedback):
-        # The algorithms take place in the main thread, to try to make vector join working without closing the
-        # project, but it still not enough.
-        layers = self.parameterAsLayerList(parameters, self.INPUTS, context)
-        drop = self.parameterAsBool(parameters, self.DROP_EXISTING_JOINS, context)
+    def processAlgorithm(self, parameters, context, feedback):
+        self.layers = self.parameterAsLayerList(parameters, self.INPUTS, context)
+        self.drop = self.parameterAsBool(parameters, self.DROP_EXISTING_JOINS, context)
+        # return {}
 
-        total = len(layers)
+    # def postProcess(self, context, feedback):
+    #     # We try to use postProcess instead of processAlgorithm to propagate joins in the project.
+    #     layers = self.layers
+    #     drop = self.drop
+
+        total = len(self.layers)
         failed = []
+        feedback.pushDebugInfo('{} layer(s) have been selected.'.format(total))
 
-        for i, layer in enumerate(layers):
+        for i, layer in enumerate(self.layers):
             # Just trying on more time to get the real layer
             layer = context.project().mapLayer(layer.id())
+            if not layer:
+                feedback.reportError(
+                    'Layer {} has not been found in the project. Skipping…'.format(layer.name()))
+                continue
+
             feedback.pushInfo('Processing layer \'{}\' with ID {}'.format(layer.name(), layer.id()))
+
             joined_fields = []
-            layer_fields = layer.fields().names()
-            if drop:
+
+            if self.drop:
                 for vector_join in layer.vectorJoins():
                     feedback.pushInfo('Removing join \'{}\''.format(vector_join.joinFieldName()))
                     layer.removeJoin(vector_join.joinLayerId())
@@ -96,43 +108,52 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
                     continue
 
                 config = widget.config()
-                feedback.pushInfo('Adding join on \'{}\''.format(field.name()))
+                target_layer = config['Layer']
+                target_field = config['Key']
+
+                source_field = field.name()
+
                 join = QgsVectorLayerJoinInfo()
-                join.setJoinFieldName(field.name())
-                join.setTargetFieldName(config['Key'])
-                join.setJoinLayerId(config['Layer'])
+                join.setJoinFieldName(source_field)
+                join.setTargetFieldName(target_field)
+                join.setJoinLayerId(target_layer)
                 join.setUsingMemoryCache(True)
 
-                join_layer = context.project().mapLayer(config['Layer'])
-                join.setPrefix(join_layer.name())
+                join_layer = context.project().mapLayer(target_layer)
+                feedback.pushInfo(
+                    'Adding join on \'{}\' with prefix \'{}\''.format(
+                        field.name(), self.prefix.format(join_layer.name())))
+                join.setPrefix(self.prefix.format(join_layer.name()))
                 if not layer.addJoin(join):
                     failed.append(layer.name())
                     feedback.reportError('Failed to add the join on {} {}'.format(layer.name(), field.name()))
                     continue
 
                 for join_field in join_layer.fields():
-                    if not join_field.name() in layer_fields:
-                        joined_fields.append('{}{}'.format(join.prefix(), join_field.name()))
+                    joined_fields.append(self.prefix.format(join_layer.name()) + join_field.name())
 
             # Uncheck WMS
             feedback.pushInfo('Unchecking WMS fields')
-            if Qgis.QGIS_VERSION_INT < 31600:
-                layer.setExcludeAttributesWms(joined_fields)
-            else:
-                for field in joined_fields:
-                    layer.setFieldConfigurationFlag(
-                        layer.fields().indexFromName(field), QgsField.HideFromWms, True)
+            # if Qgis.QGIS_VERSION_INT < 31800:
+            layer.setExcludeAttributesWms(joined_fields)
+            # else:
+            #     # Fix for QGIS >= 3.16
+            #     for field in joined_fields:
+            #         layer.setFieldConfigurationFlag(
+            #             layer.fields().indexFromName(field), QgsField.HideFromWms, True)
             feedback.pushDebugInfo(', '.join(layer.excludeAttributesWms()))
 
             # Uncheck WFS for ids
+            id_fields = [
+                f for f in joined_fields if f.endswith('_ogc_fid') or f.endswith('_id')]
             feedback.pushInfo('Unchecking WFS fields')
-            id_fields = [f for f in join_layer.fields().names() if f.endswith('_ogc_fid') or f.endswith('_id')]
-            if Qgis.QGIS_VERSION_INT < 31600:
-                layer.setExcludeAttributesWfs(id_fields)
-            else:
-                for field in id_fields:
-                    layer.setFieldConfigurationFlag(
-                        layer.fields().indexFromName(field), QgsField.HideFromWfs, True)
+            # if Qgis.QGIS_VERSION_INT < 31800:
+            layer.setExcludeAttributesWfs(id_fields)
+            # else:
+            #     # Fix for QGIS >= 3.16
+            #     for field in id_fields:
+            #         layer.setFieldConfigurationFlag(
+            #             layer.fields().indexFromName(field), QgsField.HideFromWfs, True)
             feedback.pushDebugInfo(', '.join(layer.excludeAttributesWfs()))
 
             feedback.setProgress((i + 1) / total * 100)
@@ -141,13 +162,9 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
         if failed:
             msg = 'Some joins failed to be added for : {}'.format(', '.join(failed))
             raise QgsProcessingException(msg)
-        else:
-            feedback.reportError(
-                'Everything went fine, BUT you must save your project and reopen it. Joins, WMS and WFS are '
-                'not appearing otherwise.')
 
-        return True
+        feedback.reportError(
+            'Everything went fine, BUT you must save your project and reopen it. Joins, WMS and WFS are '
+            'not appearing otherwise.')
 
-    def processAlgorithm(self, parameters, context, feedback):
-        """ See prepareAlgorithm(). """
         return {}
