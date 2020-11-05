@@ -114,9 +114,9 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
                 source_field = field.name()
 
                 join = QgsVectorLayerJoinInfo()
-                join.setJoinFieldName(source_field)
-                join.setTargetFieldName(target_field)
                 join.setJoinLayerId(target_layer)
+                join.setJoinFieldName(target_field)
+                join.setTargetFieldName(source_field)
                 join.setUsingMemoryCache(True)
 
                 join_layer = context.project().mapLayer(target_layer)
@@ -145,7 +145,8 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
 
             # Uncheck WFS for ids
             id_fields = [
-                f for f in joined_fields if f.endswith('_ogc_fid') or f.endswith('_id')]
+                f for f in joined_fields if f.endswith('_fid') or f.endswith('_id')
+            ]
             feedback.pushInfo('Unchecking WFS fields')
             # if Qgis.QGIS_VERSION_INT < 31800:
             layer.setExcludeAttributesWfs(id_fields)
