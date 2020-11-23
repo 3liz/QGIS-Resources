@@ -113,13 +113,19 @@ class AddJoinsForRelationFieldsAlgorithm(QgsProcessingAlgorithm):
 
                 source_field = field.name()
 
+                join_layer = context.project().mapLayer(target_layer)
+                if not join_layer:
+                    feedback.reportError(
+                        "The layer \"{}\" linked to the field \"{}\" has not been found in the project. "
+                        "Skipping this ValueRelation…".format(target_layer, source_field))
+                    continue
+
                 join = QgsVectorLayerJoinInfo()
                 join.setJoinLayerId(target_layer)
                 join.setJoinFieldName(target_field)
                 join.setTargetFieldName(source_field)
                 join.setUsingMemoryCache(True)
 
-                join_layer = context.project().mapLayer(target_layer)
                 feedback.pushInfo(
                     'Adding join on \'{}\' with prefix \'{}\''.format(
                         field.name(), self.prefix.format(join_layer.name())))
