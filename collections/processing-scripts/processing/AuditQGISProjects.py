@@ -240,7 +240,8 @@ class AuditQGISProjects(QgsProcessingAlgorithm):
             has_psutil = False
 
         if has_psutil:
-            used_memory = psutil.virtual_memory().used
+            process = psutil.Process(os.getpid())
+            used_memory = process.memory_info().rss
         else:
             if platform == "linux" or platform == "linux2":
                 total_memory, used_memory, free_memory = map(
@@ -392,7 +393,7 @@ class AuditQGISProjects(QgsProcessingAlgorithm):
                     continue
 
                 # Add PostgreSQL schema and table if needed
-                if output_csv_tables_path and layer.providerType() == 'postgres':
+                if output_csv_tables_path != 'TEMPORARY_OUTPUT' and layer.providerType() == 'postgres':
                     try:
                         uri = QgsDataSourceUri(datasource)
                         if uri:
@@ -409,7 +410,7 @@ class AuditQGISProjects(QgsProcessingAlgorithm):
                         print(self.tr('Error while parsing the PostgreSQL layer datasource'))
 
                 # Compute the layer properties to keep
-                if output_csv_layers_path:
+                if output_csv_layers_path != 'TEMPORARY_OUTPUT':
                     if datasource not in exported_datasources:
                         exported_datasources[datasource] = {
                             'names': [],
@@ -592,7 +593,7 @@ class AuditQGISProjects(QgsProcessingAlgorithm):
         )
 
         # Optional layers CSV
-        if output_csv_layers_path:
+        if output_csv_layers_path != 'TEMPORARY_OUTPUT':
             feedback.pushInfo('')
             feedback.pushInfo(self.tr('Writing the result to the CSV output file for layers...'))
             layers = []
@@ -624,7 +625,7 @@ class AuditQGISProjects(QgsProcessingAlgorithm):
             )
 
         # Print unique_postgresql_tables
-        if output_csv_tables_path:
+        if output_csv_tables_path != 'TEMPORARY_OUTPUT':
             feedback.pushInfo('')
             feedback.pushInfo(self.tr('Writing the PostgreSQL tables listed in the projects...'))
             feedback.pushInfo('')
