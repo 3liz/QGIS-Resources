@@ -189,7 +189,7 @@ class ImportPg(QgsProcessingAlgorithm):
         return 'pg_import'
 
     def displayName(self):
-        return 'PostgreSQL'
+        return 'Import into PostgreSQL'
 
     def shortHelpString(self):
         return (
