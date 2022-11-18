@@ -12,28 +12,29 @@
 
 __author__ = 'Michaël Douchin'
 
-import os
-from pathlib import Path
-from sys import platform
-import re
 import csv
 import json
+import os
+import re
+
 from glob import glob
+from pathlib import Path
+from sys import platform
 from xml.etree import cElementTree as et
 from xml.etree.ElementTree import ParseError as et_error
 
-from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
-    QgsProject,
     QgsDataSourceUri,
     QgsLayoutItemPicture,
-    QgsSettings,
     QgsProcessingAlgorithm,
-    QgsProcessingParameterString,
+    QgsProcessingParameterBoolean,
     QgsProcessingParameterFile,
     QgsProcessingParameterFileDestination,
-    QgsProcessingParameterBoolean
+    QgsProcessingParameterString,
+    QgsProject,
+    QgsSettings,
 )
+from qgis.PyQt.QtCore import QCoreApplication
 
 
 class AuditQGISProjects(QgsProcessingAlgorithm):

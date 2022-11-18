@@ -1,10 +1,9 @@
 import processing
 
-from qgis.core import (
+from qgis.core import (  # QgsProcessingException,
     QgsDataSourceUri,
     QgsProcessing,
     QgsProcessingAlgorithm,
-    QgsProcessingException,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterDatabaseSchema,
     QgsProcessingParameterField,
@@ -12,6 +11,7 @@ from qgis.core import (
     QgsProcessingParameterString,
     QgsProcessingParameterVectorLayer,
     QgsProviderRegistry,
+    QgsWkbTypes,
 )
 
 __copyright__ = "Copyright 2022 , 3Liz"
@@ -113,8 +113,6 @@ class ImportPg(QgsProcessingAlgorithm):
         feature_count = layer.featureCount()
         feedback.pushInfo(f'{feature_count} features in the source table {layer.name()}')
 
-        geom_type = layer.wkbType()
-
         fields = layer.fields().names()
         included_fields = []
         excluded_fields = []
@@ -131,50 +129,59 @@ class ImportPg(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f"Fields which are kept : {included_fields}")
         options = f"-select {included_fields}"
 
+        geom_type = layer.wkbType()
+        geom_type_ogr = self.from_wkb_type_to_geom_type(QgsWkbTypes.flatType(int(geom_type)))
+        feedback.pushDebugInfo(
+            f"Original geometry type is {QgsWkbTypes.displayString(int(geom_type))}, which is flat type "
+            f"{QgsWkbTypes.displayString(QgsWkbTypes.flatType(int(geom_type)))}, which is geomtype "
+            f"{geom_type_ogr} for OGR.")
+
+        alg = "gdal:importvectorintopostgisdatabaseavailableconnections"
+        params = {
+            'DATABASE': connection_name,
+            'INPUT': layer,
+            'SHAPE_ENCODING': layer.dataProvider().encoding(),
+            'GTYPE': geom_type_ogr,
+            'A_SRS': layer.crs(),
+            'T_SRS': layer.crs(),
+            'S_SRS': layer.crs(),
+            'SCHEMA': schema,
+            'TABLE': table,
+            'PK': primary_key,
+            'PRIMARY_KEY': primary_key,
+            'GEOCOLUMN': QgsDataSourceUri(layer.source()).geometryColumn(),
+            'DIM': QgsWkbTypes.coordDimensions(geom_type),
+            'SIMPLIFY': '',
+            'SEGMENTIZE': '',
+            'SPAT': None,
+            'CLIP': False,
+            'WHERE': '',
+            'GT': '',
+            'OVERWRITE': self.parameterAsBool(parameters, self.OVERWRITE, context),
+            'APPEND': False,
+            'ADDFIELDS': False,
+            'LAUNDER': False,
+            'INDEX': False,
+            'SKIPFAILURES': False,
+            'PROMOTETOMULTI': False,
+            'PRECISION': False,
+            'OPTIONS': options,
+        }
         feedback.pushDebugInfo("Starting the import")
-        processing.run(
-            "gdal:importvectorintopostgisdatabaseavailableconnections",
-            {
-                'DATABASE': connection_name,
-                'INPUT': layer,
-                'SHAPE_ENCODING': layer.dataProvider().encoding(),
-                'GTYPE': geom_type,
-                'A_SRS': layer.crs(),
-                'T_SRS': layer.crs(),
-                'S_SRS': layer.crs(),
-                'SCHEMA': schema,
-                'TABLE': table,
-                'PK': primary_key,
-                'PRIMARY_KEY': primary_key,
-                'GEOCOLUMN': QgsDataSourceUri(layer.source()).geometryColumn(),
-                'DIM': 0,
-                'SIMPLIFY': '',
-                'SEGMENTIZE': '',
-                'SPAT': None,
-                'CLIP': False,
-                'WHERE': '',
-                'GT': '',
-                'OVERWRITE': self.parameterAsBool(parameters, self.OVERWRITE, context),
-                'APPEND': False,
-                'ADDFIELDS': False,
-                'LAUNDER': False,
-                'INDEX': False,
-                'SKIPFAILURES': False,
-                'PROMOTETOMULTI': False,
-                'PRECISION': False,
-                'OPTIONS': options,
-            },
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True
-        )
+        feedback.pushDebugInfo(alg)
+        feedback.pushDebugInfo(str(params))
+        processing.run(alg, params, context=context, feedback=feedback, is_child_algorithm=True)
         feedback.pushDebugInfo("End of the import process")
 
         if not connection.tableExists(schema, table):
-            raise QgsProcessingException("Error, the destination table has not been found. Please check the logs.")
+            # raise QgsProcessingException("Error, the destination table has not been found. Please check the logs.")
+            feedback.pushWarning(f"Couldn't connect to \"{schema}\".\"{table}\" but let's continue for the SELECT")
 
-        data = connection.executeSql(f"SELECT COUNT(*) FROM \"{schema}\".\"{table}\"")
+        query = f"SELECT COUNT(*) FROM \"{schema}\".\"{table}\""
+        feedback.pushDebugInfo(query)
+        data = connection.executeSql(query)
         new_feature_count = data[0][0]
+        feedback.pushDebugInfo(f" => {new_feature_count} features.")
         if new_feature_count == feature_count:
             feedback.pushInfo(f'Import is OK with {new_feature_count} features in the new table {schema}.{table}')
         else:
@@ -184,6 +191,43 @@ class ImportPg(QgsProcessingAlgorithm):
             )
 
         return {}
+
+    @staticmethod
+    def from_wkb_type_to_geom_type(wkb_type) -> int:
+        flat = QgsWkbTypes.flatType(int(wkb_type))
+        # from https://api.qgis.org/api/qgswkbtypes_8h_source.html#l00732
+        # and
+        # from https://github.com/qgis/QGIS/blob/master/python/plugins/processing/algs/gdal/ogr2ogrtopostgislist.py#L51
+        if flat == QgsWkbTypes.Point:
+            return 3
+        elif flat == QgsWkbTypes.LineString:
+            return 4
+        elif flat == QgsWkbTypes.Polygon:
+            return 5
+        elif flat == QgsWkbTypes.Triangle:
+            # To check
+            return 5
+        elif flat == QgsWkbTypes.MultiPoint:
+            return 7
+        elif flat == QgsWkbTypes.MultiLineString:
+            return 9
+        elif flat == QgsWkbTypes.MultiPolygon:
+            return 8
+        elif flat == QgsWkbTypes.GeometryCollection:
+            return 6
+        elif flat == QgsWkbTypes.CircularString:
+            return 10
+        elif flat == QgsWkbTypes.CompoundCurve:
+            return 11
+        elif flat == QgsWkbTypes.MultiCurve:
+            return 13
+        elif flat == QgsWkbTypes.CurvePolygon:
+            return 12
+        elif flat == QgsWkbTypes.MultiSurface:
+            return 14
+        elif flat == QgsWkbTypes.NoGeometry:
+            return 1
+        return 0
 
     def name(self):
         return 'pg_import'
