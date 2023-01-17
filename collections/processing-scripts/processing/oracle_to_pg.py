@@ -1,9 +1,10 @@
 import processing
 
-from qgis.core import (  # QgsProcessingException,
+from qgis.core import (
     QgsDataSourceUri,
     QgsProcessing,
     QgsProcessingAlgorithm,
+    QgsProcessingException,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterDatabaseSchema,
     QgsProcessingParameterField,
@@ -14,7 +15,7 @@ from qgis.core import (  # QgsProcessingException,
     QgsWkbTypes,
 )
 
-__copyright__ = "Copyright 2022 , 3Liz"
+__copyright__ = "Copyright 2023, 3Liz"
 __license__ = "GPL version 3"
 __email__ = "info@3liz.org"
 
@@ -90,6 +91,10 @@ class ImportPg(QgsProcessingAlgorithm):
         schema = self.parameterAsSchema(parameters, self.SCHEMA, context)
         table = self.parameterAsString(parameters, self.TABLE, context)
 
+        if table != table.lower():
+            msg = f"The table name must be written in lower case '{table.lower()}'."
+            return False, msg
+
         overwrite = self.parameterAsBool(parameters, self.OVERWRITE, context)
 
         if connection.tableExists(schema, table) and not overwrite:
@@ -150,7 +155,7 @@ class ImportPg(QgsProcessingAlgorithm):
             'PK': primary_key,
             'PRIMARY_KEY': primary_key,
             'GEOCOLUMN': QgsDataSourceUri(layer.source()).geometryColumn(),
-            'DIM': QgsWkbTypes.coordDimensions(geom_type),
+            # 'DIM': QgsWkbTypes.coordDimensions(geom_type),
             'SIMPLIFY': '',
             'SEGMENTIZE': '',
             'SPAT': None,
@@ -160,7 +165,7 @@ class ImportPg(QgsProcessingAlgorithm):
             'OVERWRITE': self.parameterAsBool(parameters, self.OVERWRITE, context),
             'APPEND': False,
             'ADDFIELDS': False,
-            'LAUNDER': False,
+            'LAUNDER': True,
             'INDEX': False,
             'SKIPFAILURES': False,
             'PROMOTETOMULTI': False,
@@ -174,8 +179,8 @@ class ImportPg(QgsProcessingAlgorithm):
         feedback.pushDebugInfo("End of the import process")
 
         if not connection.tableExists(schema, table):
-            # raise QgsProcessingException("Error, the destination table has not been found. Please check the logs.")
-            feedback.pushWarning(f"Couldn't connect to \"{schema}\".\"{table}\" but let's continue for the SELECT")
+            raise QgsProcessingException("Error, the destination table has not been found. Please check the logs.")
+            # feedback.pushWarning(f"Couldn't connect to \"{schema}\".\"{table}\" but let's continue for the SELECT")
 
         query = f"SELECT COUNT(*) FROM \"{schema}\".\"{table}\""
         feedback.pushDebugInfo(query)
