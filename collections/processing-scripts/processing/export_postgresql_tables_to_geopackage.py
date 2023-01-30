@@ -6,6 +6,7 @@ from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingException,
     QgsProcessingParameterFileDestination,
+    QgsProcessingParameterProviderConnection,
     QgsProcessingParameterString,
     QgsProviderRegistry,
 )
@@ -42,24 +43,22 @@ class ExportPostgresqlTablesToGeopackage(QgsProcessingAlgorithm):
         return 'vector'
 
     def shortHelpString(self):
-        return self.tr("Choose a PostgreSQL connection, give a list of schemas separated by comma, and the destination GeoPackage file to create")
+        return self.tr(
+            "Choose a PostgreSQL connection, give a list of schemas separated by comma, and the destination GeoPackage "
+            "file to create"
+        )
 
     def initAlgorithm(self, config=None):
         """
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
-        # INPUTS
-        db_param = QgsProcessingParameterString(
+        db_param = QgsProcessingParameterProviderConnection(
             self.CONNECTION_NAME,
             self.tr('PostgreSQL connection'),
-            optional=False
+            "postgres",
+            optional=False,
         )
-        db_param.setMetadata({
-            'widget_wrapper': {
-                'class': 'processing.gui.wrappers_postgis.ConnectionWidgetWrapper'
-            }
-        })
         self.addParameter(db_param)
 
         schemas_param = QgsProcessingParameterString(
