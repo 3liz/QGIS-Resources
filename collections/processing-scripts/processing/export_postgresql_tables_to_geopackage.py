@@ -1,12 +1,13 @@
 import os
 
 from processing.algs.gdal.GdalUtils import GdalUtils
-from processing.tools.postgis import uri_from_name
 from qgis.core import (
+    QgsDataSourceUri,
     QgsProcessingAlgorithm,
     QgsProcessingException,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterString,
+    QgsProviderRegistry,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
@@ -89,15 +90,10 @@ class ExportPostgresqlTablesToGeopackage(QgsProcessingAlgorithm):
         """
         Return a QgsDatasourceUri from a PostgreSQL connection name
         """
-
-        uri = uri_from_name(connection_name)
-
-        # In QGIS 3.10, we will use
-        # metadata = QgsProviderRegistry.instance().providerMetadata('postgres')
-        # find a connection by name
-        # connection = metadata.findConnection(connection_name)
-        # uri_str = connection.uri()
-        # uri = QgsDataSourceUri(uri)
+        metadata = QgsProviderRegistry.instance().providerMetadata('postgres')
+        connection = metadata.findConnection(connection_name)
+        uri_string = connection.uri()
+        uri = QgsDataSourceUri(uri_string)
 
         return uri
 
