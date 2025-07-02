@@ -94,7 +94,6 @@ class SetFeatureMainColor(QgsProcessingAlgorithm):
             QgsProcessingParameterField(
                 self.COLOR_FIELD,
                 self.tr('Color field - Choose the field to update'),
-                type=1,
                 optional=True,
                 parentLayerParameterName=self.INPUT_LAYER
             )
@@ -113,7 +112,6 @@ class SetFeatureMainColor(QgsProcessingAlgorithm):
             QgsProcessingParameterField(
                 self.LABEL_FIELD,
                 self.tr('Label field - Choose the field to update'),
-                type=1,
                 optional=True,
                 parentLayerParameterName=self.INPUT_LAYER
             )
